@@ -1,3 +1,7 @@
 # Collector specific configuration
 base_url: "http://api.uis.unesco.org/sdmx/"
+endpoints:
+  DEM_ECO: " "
+  EDU_FINANCE: "http://uis.unesco.org/en/topic/education-finance"
+  SDG4: "http://uis.unesco.org/en/topic/sustainable-development-goal-4"
 
