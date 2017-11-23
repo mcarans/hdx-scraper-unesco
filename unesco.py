@@ -17,6 +17,9 @@ from slugify import slugify
 
 logger = logging.getLogger(__name__)
 
+MAX_OBSERVATIONS = 2000
+dataurl_suffix = 'format=sdmx-json&detail=structureonly&includeMetrics=true'
+
 
 def get_countriesdata(base_url, downloader):
     response = downloader.download('%scodelist/UNESCO/CL_AREA/latest?format=sdmx-json' % base_url)
@@ -24,7 +27,28 @@ def get_countriesdata(base_url, downloader):
     return jsonresponse['Codelist'][0]['items']
 
 
-def generate_dataset_and_showcase(base_url, downloader, countrydata, endpoints):
+def get_endpoints_metadata(base_url, downloader, endpoints):
+    endpoints_metadata = dict()
+    for endpoint in sorted(endpoints):
+        base_dataurl = '%sdata/UNESCO,%s,1.0/' % (base_url, endpoint)
+        datastructure_url = '%s?%s' % (base_dataurl, dataurl_suffix)
+        response = downloader.download(datastructure_url)
+        json = response.json()
+        indicator = json['structure']['name']
+        dimensions = json['structure']['dimensions']['observation']
+        urllist = [base_dataurl]
+        for dimension in dimensions:
+            if dimension['id'] == 'REF_AREA':
+                urllist.append('%s')
+            else:
+                urllist.append('.')
+        urllist.append('?')
+        structure_url = ''.join(urllist)
+        endpoints_metadata[endpoint] = indicator, structure_url, endpoints[endpoint]
+    return endpoints_metadata
+
+
+def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     """
     https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO,1.0/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
     """
@@ -52,21 +76,10 @@ def generate_dataset_and_showcase(base_url, downloader, countrydata, endpoints):
 
     earliest_year = 10000
     latest_year = 0
-    for endpoint in sorted(endpoints):
-        datastructure_url = '%sdataflow/UNESCO/%s/latest?references=datastructure&format=sdmx-json' % (base_url, endpoint)
-        response = downloader.download(datastructure_url)
-        json = response.json()
-        indicator = json['Dataflow'][0]['names'][0]['value']
-        dimensions = json['DataStructure'][0]['dimensionList']['dimensions']
-        urllist = ['%sdata/UNESCO,%s,1.0/' % (base_url, endpoint)]
-        for dimension in dimensions:
-            if dimension['id'] == 'REF_AREA':
-                urllist.append(countryiso2)
-            else:
-                urllist.append('.')
-        urllist.append('?format=sdmx-json&detail=structureonly&includeMetrics=true')
-        structure_url = ''.join(urllist)
-        response = downloader.download(structure_url)
+    for endpoint in sorted(endpoints_metadata):
+        indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
+        structure_url = structure_url % countryiso2
+        response = downloader.download('%s%s' % (structure_url, dataurl_suffix))
         json = response.json()
         observations = json['structure']['dimensions']['observation']
         time_periods = dict()
@@ -75,34 +88,35 @@ def generate_dataset_and_showcase(base_url, downloader, countrydata, endpoints):
                 for value in observation['values']:
                     time_periods[int(value['id'])] = value['actualObs']
         years = sorted(time_periods.keys(), reverse=True)
+        if len(years) == 0:
+            logger.error('No time periods for country %s!' % countryname)
+            return None, None
         end_year = years[0]
         if years[-1] < earliest_year:
             earliest_year = years[-1]
         if end_year > latest_year:
             latest_year = end_year
-        urllist[-1] = '?format=csv'
-        urllist.append('')
+        csv_url = '%sformat=csv' % structure_url
 
-        description = endpoints[endpoint]
+        description = more_info_url
         if description != ' ':
             description = '[More information](%s)' % description
 
-        obs_count = 0
-        start_year = end_year
-
         def create_resource():
-            urllist[-1] = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
+            url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
             resource = {
                 'name': '%s (%d-%d)' % (indicator, start_year, end_year),
                 'description': description,
                 'format': 'csv',
-                'url': downloader.get_full_url(''.join(urllist))
+                'url': downloader.get_full_url('%s%s' % (csv_url, url_years))
             }
             dataset.add_update_resource(resource)
 
+        obs_count = 0
+        start_year = end_year
         for year in years:
             obs_count += time_periods[year]
-            if obs_count < 2000:
+            if obs_count < MAX_OBSERVATIONS:
                 start_year = year
                 continue
             obs_count = time_periods[year]
