@@ -34,11 +34,11 @@ def main():
 
         for countrydata in countriesdata:
             dataset, showcase = generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata)
+            no_calls += 3
+            if no_calls >= 96:
+                time.sleep(3600)
+                no_calls = 0
             if dataset:
-                no_calls += 3
-                if no_calls >= 96:
-                    time.sleep(3600)
-                    no_calls = 0
                 dataset.update_from_yaml()
                 dataset.create_in_hdx()
                 showcase.create_in_hdx()

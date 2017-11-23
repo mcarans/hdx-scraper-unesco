@@ -89,8 +89,8 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
                     time_periods[int(value['id'])] = value['actualObs']
         years = sorted(time_periods.keys(), reverse=True)
         if len(years) == 0:
-            logger.error('No time periods for country %s!' % countryname)
-            return None, None
+            logger.warning('No time periods for endpoint %s for country %s!' % (indicator, countryname))
+            continue
         end_year = years[0]
         if years[-1] < earliest_year:
             earliest_year = years[-1]
@@ -123,6 +123,10 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
             create_resource()
             end_year = year
         create_resource()
+
+    if len(dataset.get_resources()) == 0:
+        logger.error('No resources created for country %s!' % countryname)
+        return None, None
     dataset.set_dataset_year_range(earliest_year, latest_year)
 
     showcase = Showcase({
