@@ -11,6 +11,7 @@ Reads UNESCO API and creates datasets.
 import logging
 
 from hdx.data.dataset import Dataset
+from hdx.data.hdxobject import HDXError
 from hdx.data.showcase import Showcase
 from hdx.location.country import Country
 from slugify import slugify
@@ -68,8 +69,11 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     })
     dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
     dataset.set_organization('18f2d467-dcf8-4b7e-bffa-b3c338ba3a7c')
-    dataset.add_country_location(countryiso3)
-    logger.info('Creating dataset: %s' % title)
+    try:
+        dataset.add_country_location(countryiso3)
+    except HDXError as e:
+        logger.exception('%s has a problem! %s' % (countryname, e))
+        return None, None
     dataset.set_expected_update_frequency('Every year')
     tags = ['indicators', 'UNESCO', 'sustainable development', 'demographic', 'socioeconomic', 'education']
     dataset.add_tags(tags)
