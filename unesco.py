@@ -86,6 +86,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     earliest_year = 10000
     latest_year = 0
     for endpoint in sorted(endpoints_metadata):
+        time.sleep(0.2)
         indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
         structure_url = structure_url % countryiso2
         response = None
