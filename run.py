@@ -35,7 +35,7 @@ def main():
         for countrydata in countriesdata:
             dataset, showcase = generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata)
             no_calls += 3
-            if no_calls >= 96:
+            if no_calls >= 90:
                 time.sleep(3900)
                 no_calls = 0
             if dataset:
