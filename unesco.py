@@ -96,6 +96,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
                 exc_info = sys.exc_info()
                 tp, val, tb = exc_info
                 if 'Quota Exceeded' in str(val.__cause__):
+                    logger.info('Sleeping for one minute')
                     time.sleep(60)
                 else:
                     reraise(*exc_info)
