@@ -10,10 +10,15 @@ Reads UNESCO API and creates datasets.
 
 import logging
 
+import time
+
+import sys
 from hdx.data.dataset import Dataset
 from hdx.data.hdxobject import HDXError
 from hdx.data.showcase import Showcase
 from hdx.location.country import Country
+from hdx.utilities.downloader import DownloadError
+from six import reraise
 from slugify import slugify
 
 logger = logging.getLogger(__name__)
@@ -83,7 +88,17 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     for endpoint in sorted(endpoints_metadata):
         indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
         structure_url = structure_url % countryiso2
-        response = downloader.download('%s%s' % (structure_url, dataurl_suffix))
+        response = None
+        while response is None:
+            try:
+                response = downloader.download('%s%s' % (structure_url, dataurl_suffix))
+            except DownloadError:
+                exc_info = sys.exc_info()
+                tp, val, tb = exc_info
+                if 'Quota Exceeded' in str(val.__cause__):
+                    time.sleep(60)
+                else:
+                    reraise(*exc_info)
         json = response.json()
         observations = json['structure']['dimensions']['observation']
         time_periods = dict()

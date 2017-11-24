@@ -7,7 +7,7 @@ Top level script. Calls other functions that generate datasets that this script 
 import logging
 from os.path import join, expanduser
 
-import time
+
 from hdx.hdx_configuration import Configuration
 from hdx.utilities.downloader import Download
 
@@ -29,15 +29,10 @@ def main():
         endpoints = Configuration.read()['endpoints']
         endpoints_metadata = get_endpoints_metadata(base_url, downloader, endpoints)
         countriesdata = get_countriesdata(base_url, downloader)
-        no_calls = 4
         logger.info('Number of datasets to upload: %d' % len(countriesdata))
 
         for countrydata in countriesdata:
             dataset, showcase = generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata)
-            no_calls += 3
-            if no_calls >= 90:
-                time.sleep(3900)
-                no_calls = 0
             if dataset:
                 dataset.update_from_yaml()
                 dataset.create_in_hdx()
