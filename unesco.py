@@ -63,6 +63,9 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     countryiso3 = Country.get_iso3_from_iso2(countryiso2)
     if countryiso3 is None:
         countryiso3, _ = Country.get_iso3_country_code_fuzzy(countryname)
+        if countryiso3 is None:
+            logger.exception('Cannot get iso3 code for %s!' % countryname)
+            return None, None
         logger.info('Matched %s to %s!' % (countryname, countryiso3))
     name = 'UNESCO indicators for %s' % countryname
     slugified_name = slugify(name).lower()
