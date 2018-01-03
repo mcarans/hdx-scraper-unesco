@@ -125,7 +125,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
         description = more_info_url
         if description != ' ':
             description = '[Info on %s](%s)' % (indicator, description)
-        description = 'To save, right click download & click Save Link/Target As  \n%s' % description
+        description = 'To save, right click download button & click Save Link/Target As  \n%s' % description
 
         def create_resource():
             url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)

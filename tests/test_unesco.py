@@ -79,7 +79,7 @@ class TestUnesco:
                            'name': 'unesco-indicators-for-argentina', 'dataset_date': '01/01/1970-12/31/2014'}
         resources = dataset.get_resources()
 
-        expected_description = 'To save, right click download & click Save Link/Target As  \n[Info on Education: Financial resources](http://uis.unesco.org/en/topic/education-finance)'
+        expected_description = 'To save, right click download button & click Save Link/Target As  \n[Info on Education: Financial resources](http://uis.unesco.org/en/topic/education-finance)'
         assert resources == [{'description': expected_description,
                               'url': 'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/..........AR.?format=csv&startPeriod=2009&endPeriod=2014&locale=en&subscription-key=12345',
                               'name': 'Education: Financial resources (2009-2014)', 'format': 'csv'},
