@@ -60,6 +60,9 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     """
     countryiso2 = countrydata['id']
     countryname = countrydata['names'][0]['value']
+    if countryname[:4] in ['WB: ', 'SDG:', 'MDG:'] or countryname[:7] == 'UNICEF:':
+        logger.info('Ignoring %s!' % countryname)
+        return None, None
     countryiso3 = Country.get_iso3_from_iso2(countryiso2)
     if countryiso3 is None:
         countryiso3, _ = Country.get_iso3_country_code_fuzzy(countryname)
