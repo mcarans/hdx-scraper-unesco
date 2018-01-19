@@ -60,7 +60,8 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     """
     countryiso2 = countrydata['id']
     countryname = countrydata['names'][0]['value']
-    if countryname[:4] in ['WB: ', 'SDG:', 'MDG:'] or countryname[:7] == 'UNICEF:':
+    if countryname[:4] in ['WB: ', 'SDG:', 'MDG:', 'UIS:', 'EFA:'] or countryname[:5] in ['GEMR:', 'AIMS:'] or \
+            countryname[:7] in ['UNICEF:', 'UNESCO:']:
         logger.info('Ignoring %s!' % countryname)
         return None, None
     countryiso3 = Country.get_iso3_from_iso2(countryiso2)
