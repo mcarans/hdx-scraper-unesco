@@ -7,7 +7,7 @@ Top level script. Calls other functions that generate datasets that this script 
 import logging
 from os.path import join, expanduser
 
-
+from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
 from hdx.utilities.downloader import Download
 
@@ -34,6 +34,16 @@ def main():
         for countrydata in countriesdata:
             dataset, showcase = generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata)
             if dataset:
+                resource_names = [x['name'] for x in dataset.get_resources()]
+                dataset_name = dataset['name']
+                dataset_del_res = Dataset.read_from_hdx(dataset_name)
+                if dataset_del_res:
+                    for resource in dataset_del_res.get_resources():
+                        resource_name = resource['name']
+                        if resource_name in resource_names:
+                            continue
+                        logger.info('Deleting resource: %s in dataset: %s' % (resource_name, dataset_name))
+                        resource.delete_from_hdx()
                 dataset.update_from_yaml()
                 dataset.create_in_hdx()
                 showcase.create_in_hdx()
