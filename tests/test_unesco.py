@@ -19,7 +19,7 @@ from unesco import generate_dataset_and_showcase, get_countriesdata, get_endpoin
 class TestUnesco:
     @pytest.fixture(scope='function')
     def configuration(self):
-        Configuration._create(hdx_read_only=True,
+        Configuration._create(hdx_read_only=True, user_agent='test',
                               project_config_yaml=join('tests', 'config', 'project_configuration.yml'))
         Locations.set_validlocations([{'name': 'arg', 'title': 'Argentina'}])  # add locations used in tests
         Country.countriesdata(use_live=False)
@@ -27,7 +27,7 @@ class TestUnesco:
     @pytest.fixture(scope='class')
     def endpoints_metadata(self):
         return {'EDU_FINANCE': ('Education: Financial resources',
-                                'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/..........%s.?',
+                                'http://yyyy/data/UNESCO,EDU_FINANCE/..........%s.?',
                                 'http://uis.unesco.org/en/topic/education-finance')}
 
     @pytest.fixture(scope='function')
@@ -45,7 +45,7 @@ class TestUnesco:
                     def fn():
                         return {'Codelist': [{'items': [countrydata]}]}
                     response.json = fn
-                elif 'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/' in url:
+                elif 'http://yyyy/data/UNESCO,EDU_FINANCE/' in url:
                     def fn():
                         return {'structure': {'name': 'Education: Financial resources',
                                               'dimensions': {'observation': observations}}}
@@ -54,7 +54,7 @@ class TestUnesco:
 
             @staticmethod
             def get_full_url(url):
-                url_prefix = 'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/..........AR.?format=csv'
+                url_prefix = 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv'
                 if url[:len(url_prefix)] == url_prefix:
                     return '%s&locale=en&subscription-key=12345' % url
 
@@ -81,16 +81,16 @@ class TestUnesco:
 
         expected_description = 'To save, right click download button & click Save Link/Target As  \n[Info on Education: Financial resources](http://uis.unesco.org/en/topic/education-finance)'
         assert resources == [{'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/..........AR.?format=csv&startPeriod=2009&endPeriod=2014&locale=en&subscription-key=12345',
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=2009&endPeriod=2014&locale=en&subscription-key=12345',
                               'name': 'Education: Financial resources (2009-2014)', 'format': 'csv'},
                              {'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/..........AR.?format=csv&startPeriod=2003&endPeriod=2008&locale=en&subscription-key=12345',
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=2003&endPeriod=2008&locale=en&subscription-key=12345',
                               'name': 'Education: Financial resources (2003-2008)', 'format': 'csv'},
                              {'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/..........AR.?format=csv&startPeriod=1978&endPeriod=2002&locale=en&subscription-key=12345',
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=1978&endPeriod=2002&locale=en&subscription-key=12345',
                               'name': 'Education: Financial resources (1978-2002)', 'format': 'csv'},
                              {'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE,1.0/..........AR.?format=csv&startPeriod=1970&endPeriod=1977&locale=en&subscription-key=12345',
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=1970&endPeriod=1977&locale=en&subscription-key=12345',
                               'name': 'Education: Financial resources (1970-1977)', 'format': 'csv'}]
 
         assert showcase == {'name': 'unesco-indicators-for-argentina-showcase',

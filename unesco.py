@@ -36,7 +36,7 @@ def get_countriesdata(base_url, downloader):
 def get_endpoints_metadata(base_url, downloader, endpoints):
     endpoints_metadata = dict()
     for endpoint in sorted(endpoints):
-        base_dataurl = '%sdata/UNESCO,%s,1.0/' % (base_url, endpoint)
+        base_dataurl = '%sdata/UNESCO,%s/' % (base_url, endpoint)
         datastructure_url = '%s?%s' % (base_dataurl, dataurl_suffix)
         response = downloader.download(datastructure_url)
         json = response.json()
@@ -56,7 +56,7 @@ def get_endpoints_metadata(base_url, downloader, endpoints):
 
 def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     """
-    https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO,1.0/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
+    https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
     """
     countryiso2 = countrydata['id']
     countryname = countrydata['names'][0]['value']
