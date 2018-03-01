@@ -3,5 +3,7 @@ base_url: "http://api.uis.unesco.org/sdmx/"
 endpoints:
   DEM_ECO: " "
   EDU_FINANCE: "http://uis.unesco.org/en/topic/education-finance"
+  EDU_NON_FINANCE: "http://uis.unesco.org/#tabs-themes_tab-center-1"
+  EDU_REGIONAL_MODULE: "http://uis.unesco.org/en/topic/education-africa"
   SDG4: "http://uis.unesco.org/en/topic/sustainable-development-goal-4"
 
