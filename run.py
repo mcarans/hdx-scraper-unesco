@@ -34,10 +34,10 @@ def main():
             dataset, showcase = generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata)
             if dataset:
                 dataset.update_from_yaml()
-                dataset.create_in_hdx(remove_additional_resources=True)
+                dataset.create_in_hdx(remove_additional_resources=True, hxl_update=False)
                 resources = dataset.get_resources()
                 resource_ids = [x['id'] for x in sorted(resources, key=lambda x: x['name'], reverse=True)]
-                dataset.reorder_resources(resource_ids)
+                dataset.reorder_resources(resource_ids, hxl_update=False)
                 showcase.create_in_hdx()
                 showcase.add_dataset(dataset)
 
