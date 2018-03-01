@@ -7,7 +7,6 @@ Top level script. Calls other functions that generate datasets that this script 
 import logging
 from os.path import join, expanduser
 
-from hdx.data.dataset import Dataset
 from hdx.hdx_configuration import Configuration
 from hdx.utilities.downloader import Download
 
@@ -36,6 +35,9 @@ def main():
             if dataset:
                 dataset.update_from_yaml()
                 dataset.create_in_hdx(remove_additional_resources=True)
+                resources = dataset.get_resources()
+                resource_ids = [x['id'] for x in sorted(resources, key=lambda x: x['name'], reverse=True)]
+                dataset.reorder_resources(resource_ids)
                 showcase.create_in_hdx()
                 showcase.add_dataset(dataset)
 
