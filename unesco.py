@@ -87,7 +87,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
         logger.exception('%s has a problem! %s' % (countryname, e))
         return None, None
     dataset.set_expected_update_frequency('Every year')
-    tags = ['indicators', 'UNESCO', 'sustainable development', 'demographic', 'socioeconomic', 'education']
+    tags = ['indicators', 'sustainable development', 'demographics', 'socioeconomics', 'education']
     dataset.add_tags(tags)
 
     earliest_year = 10000

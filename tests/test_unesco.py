@@ -71,8 +71,8 @@ class TestUnesco:
 
     def test_generate_dataset_and_showcase(self, configuration, downloader, endpoints_metadata):
         dataset, showcase = generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata)
-        assert dataset == {'tags': [{'name': 'indicators'}, {'name': 'UNESCO'}, {'name': 'sustainable development'},
-                                    {'name': 'demographic'}, {'name': 'socioeconomic'}, {'name': 'education'}],
+        assert dataset == {'tags': [{'name': 'indicators'}, {'name': 'sustainable development'},
+                                    {'name': 'demographics'}, {'name': 'socioeconomics'}, {'name': 'education'}],
                            'owner_org': '18f2d467-dcf8-4b7e-bffa-b3c338ba3a7c', 'data_update_frequency': '365',
                            'title': 'Argentina - Sustainable development, Education, Demographic and Socioeconomic Indicators',
                            'groups': [{'name': 'arg'}], 'maintainer': '196196be-6037-4488-8b71-d786adf4c081',
@@ -97,7 +97,7 @@ class TestUnesco:
                             'notes': 'Education, literacy and other indicators for Argentina',
                             'image_url': 'http://www.tellmaps.com/uis/internal/assets/uisheader-en.png',
                             'url': 'http://uis.unesco.org/en/country/AR',
-                            'tags': [{'name': 'indicators'}, {'name': 'UNESCO'}, {'name': 'sustainable development'},
-                                     {'name': 'demographic'}, {'name': 'socioeconomic'}, {'name': 'education'}],
+                            'tags': [{'name': 'indicators'}, {'name': 'sustainable development'},
+                                     {'name': 'demographics'}, {'name': 'socioeconomics'}, {'name': 'education'}],
                             'title': 'Indicators for Argentina'}
 
