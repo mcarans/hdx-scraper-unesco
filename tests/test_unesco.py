@@ -76,22 +76,23 @@ class TestUnesco:
                            'owner_org': '18f2d467-dcf8-4b7e-bffa-b3c338ba3a7c', 'data_update_frequency': '365',
                            'title': 'Argentina - Sustainable development, Education, Demographic and Socioeconomic Indicators',
                            'groups': [{'name': 'arg'}], 'maintainer': '196196be-6037-4488-8b71-d786adf4c081',
-                           'name': 'unesco-indicators-for-argentina', 'dataset_date': '01/01/1970-12/31/2014'}
+                           'name': 'unesco-indicators-for-argentina', 'dataset_date': '01/01/1970-12/31/2014',
+                           'subnational': '0'}
         resources = dataset.get_resources()
 
         expected_description = 'To save, right click download button & click Save Link/Target As  \n[Info on Education: Financial resources](http://uis.unesco.org/en/topic/education-finance)'
         assert resources == [{'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=2009&endPeriod=2014&locale=en&subscription-key=12345',
-                              'name': 'Education: Financial resources (2009-2014)', 'format': 'csv'},
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=2010&endPeriod=2014&locale=en&subscription-key=12345',
+                              'name': 'Education: Financial resources (2010-2014)', 'format': 'csv'},
                              {'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=2003&endPeriod=2008&locale=en&subscription-key=12345',
-                              'name': 'Education: Financial resources (2003-2008)', 'format': 'csv'},
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=2005&endPeriod=2009&locale=en&subscription-key=12345',
+                              'name': 'Education: Financial resources (2005-2009)', 'format': 'csv'},
                              {'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=1978&endPeriod=2002&locale=en&subscription-key=12345',
-                              'name': 'Education: Financial resources (1978-2002)', 'format': 'csv'},
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=1999&endPeriod=2004&locale=en&subscription-key=12345',
+                              'name': 'Education: Financial resources (1999-2004)', 'format': 'csv'},
                              {'description': expected_description,
-                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=1970&endPeriod=1977&locale=en&subscription-key=12345',
-                              'name': 'Education: Financial resources (1970-1977)', 'format': 'csv'}]
+                              'url': 'http://yyyy/data/UNESCO,EDU_FINANCE/..........AR.?format=csv&startPeriod=1970&endPeriod=1998&locale=en&subscription-key=12345',
+                              'name': 'Education: Financial resources (1970-1998)', 'format': 'csv'}]
 
         assert showcase == {'name': 'unesco-indicators-for-argentina-showcase',
                             'notes': 'Education, literacy and other indicators for Argentina',

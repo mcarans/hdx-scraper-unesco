@@ -23,7 +23,7 @@ from slugify import slugify
 
 logger = logging.getLogger(__name__)
 
-MAX_OBSERVATIONS = 2000
+MAX_OBSERVATIONS = 1800
 dataurl_suffix = 'format=sdmx-json&detail=structureonly&includeMetrics=true'
 
 
@@ -81,6 +81,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
     })
     dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
     dataset.set_organization('18f2d467-dcf8-4b7e-bffa-b3c338ba3a7c')
+    dataset.set_subnational(False)
     try:
         dataset.add_country_location(countryiso3)
     except HDXError as e:

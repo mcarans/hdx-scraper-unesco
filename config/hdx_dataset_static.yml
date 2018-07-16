@@ -1,5 +1,4 @@
 license_id: "cc-by-igo"
-subnational: 1  # has to be 0 or 1
 notes: "Contains data from UNESCO's [data portal](http://uis.unesco.org/) covering various indicators."
 caveats: ""
 methodology: "Registry"
