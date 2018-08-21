@@ -19,12 +19,14 @@ from hdx.facades.hdx_scraperwiki import facade
 
 logger = logging.getLogger(__name__)
 
+lookup = 'hdxscraper-unesco'
+
 
 def main():
     """Generate dataset and create it in HDX"""
 
     base_url = Configuration.read()['base_url']
-    with Download(extra_params_yaml=join(expanduser("~"), 'unesco.yml')) as downloader:
+    with Download(extra_params_yaml=join(expanduser('~'), '.extraparams.yml'), extra_params_lookup=lookup) as downloader:
         endpoints = Configuration.read()['endpoints']
         endpoints_metadata = get_endpoints_metadata(base_url, downloader, endpoints)
         countriesdata = get_countriesdata(base_url, downloader)
@@ -43,5 +45,5 @@ def main():
 
 
 if __name__ == '__main__':
-    facade(main, hdx_site='feature', user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup='hdxscraper-unesco', project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='feature', user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup=lookup, project_config_yaml=join('config', 'project_configuration.yml'))
 
