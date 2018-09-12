@@ -13,4 +13,4 @@ For the script to run, you will need to have a file called .hdx_configuration.ym
     hdx_read_only: false
     hdx_site: prod
     
- You will also need to supply the universal .useragents.yml file in your home directory as specified in the parameter *user_agent_config_yaml* passed to facade in run.py. The collector reads the key **hdxscraper-fts** as specified in the parameter *user_agent_lookup*.
+ You will also need to supply the universal .useragents.yml file in your home directory as specified in the parameter *user_agent_config_yaml* passed to facade in run.py. The collector reads the key **hdxscraper-unesco** as specified in the parameter *user_agent_lookup*.
