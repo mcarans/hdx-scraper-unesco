@@ -19,7 +19,7 @@ from hdx.facades.hdx_scraperwiki import facade
 
 logger = logging.getLogger(__name__)
 
-lookup = 'hdxscraper-unesco'
+lookup = 'hdx-scraper-unesco'
 
 
 def main():
