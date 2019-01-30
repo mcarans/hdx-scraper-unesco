@@ -160,7 +160,7 @@ Wealth quintile
 
     return pd.DataFrame(data=[hxl],columns=df.columns).append(df,ignore_index=True)
 
-def process_df(df, code_column_postfix = " code", store_code = True, time_column = "Time Period", value_column = "Value"):
+def process_df(df, code_column_postfix = " code", store_code = False, time_column = "Time Period", value_column = "Value"):
     """
     Processed the raw (merged) data into a desired format:
     Code (id) is removed from string values and optionally (if store_code is True) saved in "code" columns (with column name postfixed by code_column_postfix).

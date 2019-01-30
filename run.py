@@ -28,7 +28,6 @@ def main():
 
     base_url = Configuration.read()['base_url']
     with temp_dir('UNESCO') as folder:
-        folder = "/home/orest/PycharmProjects/hdx/hdx-scraper-unesco/UNESCO"
         with Download(extra_params_yaml=join(expanduser('~'), '.extraparams.yml'), extra_params_lookup=lookup) as downloader:
             endpoints = Configuration.read()['endpoints']
             endpoints_metadata = get_endpoints_metadata(base_url, downloader, endpoints)
@@ -37,8 +36,7 @@ def main():
 
             for countrydata in countriesdata:
                 dataset, showcase = generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True)
-                if False:
-                #if dataset:
+                if dataset:
                     dataset.update_from_yaml()
                     dataset.create_in_hdx(remove_additional_resources=True, hxl_update=False)
                     resources = dataset.get_resources()
@@ -48,6 +46,5 @@ def main():
                     showcase.add_dataset(dataset)
 
 if __name__ == '__main__':
-#    facade(main, user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup=lookup, project_config_yaml=join('config', 'project_configuration.yml'))
-    facade(main, user_agent="UNESCO", project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup=lookup, project_config_yaml=join('config', 'project_configuration.yml'))
 
