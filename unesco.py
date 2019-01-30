@@ -195,8 +195,18 @@ def split_df_by_column(df, column):
         for x in data[column].unique():
             df_part = tags[other_columns].append(data.loc[data[column]==x,other_columns], ignore_index=True)
             yield x, df_part
+def remove_useless_columns_from_df(df):
+    tags = df.iloc[[0], :]
+    data = df.iloc[1:, :]
+    for c in df.columns:
+        values = data[c].unique()
+        if len(values)==1:
+            if isinstance(values[0], str):
+                if values[0].lower() in ["total", "_t", "not applicable", "_z", "na"] or str(values[0]).lower().startswith("all "):
+                    df=df.drop(columns=c)
+    return df
 
-def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False, split_to_resources_by_column = "Statistical unit"):
+def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False, split_to_resources_by_column = "Statistical unit", remove_useless_columns = True):
     """
     https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
     """
@@ -344,6 +354,8 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                                 ("UNESCO_%s_%s.csv" % (
                                     ("" if value is None else value+"_") + indicator, countryname)
                                  ).replace(" ", "-").replace(":", "-").replace("/","-"))
+                if remove_useless_columns:
+                    df_part = remove_useless_columns_from_df(df_part)
                 df_part.to_csv(file_csv, index=False)
                 description_part = 'Info on %s%s' % ("" if value is None else value+" in ", indicator)
                 resource = Resource({
