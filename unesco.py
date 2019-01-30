@@ -111,7 +111,7 @@ def expand_time_columns_df(df, time_column="Time Period", value_column="Value"):
         dfblock = dfc.copy()
         dfblock[time_column] = y
         dfblock[value_column] = df[y].values
-        new_df = new_df.append(dfblock,ignore_index=True)
+        new_df = new_df.append(dfblock, ignore_index=True)
     return new_df
 
 def add_hxl_tags(df, time_column = "Time Period", value_column = "Value", code_column_postfix = " code"):
@@ -180,12 +180,23 @@ def process_df(df, code_column_postfix = " code", store_code = False, time_colum
 
     # Remove rows lacking a value
     index = ~(df[value_column].isna() | np.array([len(str(x).strip())==0 for x in df[value_column]]))
-    df1 = df.loc[index]
+    df1 = df.loc[index].sort_values(by=[time_column]) # select and sort
 
-    return add_hxl_tags(df1, time_column = time_column, value_column = value_column, code_column_postfix = code_column_postfix)
+    df2 = add_hxl_tags(df1, time_column = time_column, value_column = value_column, code_column_postfix = code_column_postfix)
+    return df2
 
+def split_df_by_column(df, column):
+    if column is None:
+        yield None, df
+    else:
+        tags = df.iloc[[0], :]
+        data = df.iloc[1:, :]
+        other_columns = [c for c in df.columns if c!=column]
+        for x in data[column].unique():
+            df_part = tags[other_columns].append(data.loc[data[column]==x,other_columns], ignore_index=True)
+            yield x, df_part
 
-def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False):
+def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False, split_to_resources_by_column = "Statistical unit"):
     """
     https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
     """
@@ -328,15 +339,21 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
             end_year = year
 
         if df is not None:
-            file_csv = join(folder, ("UNESCO_%s_%s.csv"%(countryname,indicator)).replace(" ","-").replace(":","-"))
-            process_df(df).to_csv(file_csv, index=False)
-            resource = Resource({
-                'name': indicator,
-                'description': description
-            })
-            resource.set_file_type('csv')
-            resource.set_file_to_upload(file_csv)
-            dataset.add_update_resource(resource)
+            for value, df_part in split_df_by_column(process_df(df), split_to_resources_by_column):
+                file_csv = join(folder,
+                                ("UNESCO_%s_%s.csv" % (
+                                    ("" if value is None else value+"_") + indicator, countryname)
+                                 ).replace(" ", "-").replace(":", "-").replace("/","-"))
+                df_part.to_csv(file_csv, index=False)
+                description_part = 'Info on %s%s' % ("" if value is None else value+" in ", indicator)
+                resource = Resource({
+                    'name': value,
+                    'description': description
+                })
+                resource.set_file_type('csv')
+                resource.set_file_to_upload(file_csv)
+                dataset.add_update_resource(resource)
+
         if not single_dataset:
             if len(dataset.get_resources()) == 0:
                 logger.error('No resources created for country %s!' % countryname)
