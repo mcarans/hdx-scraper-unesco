@@ -15,11 +15,16 @@ import time
 import sys
 from hdx.data.dataset import Dataset
 from hdx.data.hdxobject import HDXError
+from hdx.data.resource import Resource
 from hdx.data.showcase import Showcase
 from hdx.location.country import Country
 from hdx.utilities.downloader import DownloadError
 from six import reraise
 from slugify import slugify
+from io import BytesIO
+import pandas as pd
+import numpy as np
+from os.path import join
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +44,7 @@ def get_endpoints_metadata(base_url, downloader, endpoints):
         base_dataurl = '%sdata/UNESCO,%s/' % (base_url, endpoint)
         datastructure_url = '%s?%s' % (base_dataurl, dataurl_suffix)
         response = downloader.download(datastructure_url)
+        #open("endpointmeta_%s.json"%endpoint,"wb").write(response.content)  ###########################
         json = response.json()
         indicator = json['structure']['name']
         dimensions = json['structure']['dimensions']['observation']
@@ -54,7 +60,70 @@ def get_endpoints_metadata(base_url, downloader, endpoints):
     return endpoints_metadata
 
 
-def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
+def split_columns_df(df, code_column_postfix = " code", store_code = False):
+    split_columns = [x.strip() for x in """
+Age
+Country / region of origin
+Destination region
+Field of education
+Funding flow
+Grade
+Immigration status
+Infrastructure
+Level of education
+Level of educational attainment
+Location
+Orientation
+Reference area
+School subject
+Sex
+Socioeconomic background
+Source of funding
+Statistical unit
+Teaching experience
+Time Period
+Type of contract
+Type of education
+Type of expenditure
+Type of institution
+Unit of measure
+Wealth quintile
+""".split("\n") if len(x) and x in df.columns]
+    new_df=pd.DataFrame()
+    for c in split_columns:
+#        values = [":".join(x.split(":")[1:]).replace("Not applicable","NA") for x in df[c].values]
+        values = [":".join(x.split(":")[1:]) for x in df[c].values]
+        new_df[c]=values
+        if store_code:
+            cc = c + code_column_postfix
+            codes = [x.split(":")[0] for x in df[c].values]
+            new_df[cc]=codes
+    for c in [x for x in df.columns if x not in split_columns]:
+        new_df[c]=df[c].values
+    return new_df
+
+def expand_time_columns_df(df, time_column="Time Period", value_column="Value"):
+    year_columns = [y for y in df.columns if str(y).isdigit()]
+    copy_columns = [c for c in df.columns if c not in year_columns]
+    new_df=pd.DataFrame(columns = copy_columns+[time_column, value_column])
+    dfc = df[copy_columns]
+    for y in year_columns:
+        dfblock = dfc.copy()
+        dfblock[time_column] = y
+        dfblock[value_column] = df[y].values
+        new_df = new_df.append(dfblock,ignore_index=True)
+    return new_df
+
+def process_df(df, code_column_postfix = " code", store_code = False, time_column = "Time Period", value_column = "Value"):
+    df = df.drop(columns="Time Period") # This columns just contains codes already present in each value
+    df = split_columns_df(df, code_column_postfix = code_column_postfix, store_code = store_code)
+    df = expand_time_columns_df(df, time_column = time_column, value_column = value_column)
+    index = ~(df[value_column].isna() | np.array([len(str(x).strip())==0 for x in df[value_column]]))
+
+    return df.loc[index]
+
+
+def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True):
     """
     https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
     """
@@ -93,22 +162,29 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
 
     earliest_year = 10000
     latest_year = 0
-    for endpoint in sorted(endpoints_metadata):
-        time.sleep(0.2)
-        indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
-        structure_url = structure_url % countryiso2
+    def load_safely(url):
         response = None
         while response is None:
             try:
-                response = downloader.download('%s%s' % (structure_url, dataurl_suffix))
+                response = downloader.download(url)
             except DownloadError:
                 exc_info = sys.exc_info()
                 tp, val, tb = exc_info
                 if 'Quota Exceeded' in str(val.__cause__):
                     logger.info('Sleeping for one minute')
                     time.sleep(60)
+                elif 'Not Found' in str(val.__cause__):
+                    logger.exception("Resource not found: %s"%url)
+                    return None
                 else:
                     reraise(*exc_info)
+        return response
+
+    for endpoint in sorted(endpoints_metadata):
+        time.sleep(0.2)
+        indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
+        structure_url = structure_url % countryiso2
+        response = load_safely('%s%s' % (structure_url, dataurl_suffix))
         json = response.json()
         observations = json['structure']['dimensions']['observation']
         time_periods = dict()
@@ -142,17 +218,44 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata):
             }
             dataset.add_update_resource(resource)
 
+        def download_df():
+            url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
+            url = downloader.get_full_url('%s%s' % (csv_url, url_years))
+            print ("ENDPOINT:%s "%endpoint)
+            print ("URL     :%s "%url)
+            response = load_safely(url)
+            if response is not None:
+                return pd.read_csv(BytesIO(response.content),encoding = "ISO-8859-1")
+
         obs_count = 0
         start_year = end_year
+        df = None
+
         for year in years:
             obs_count += time_periods[year]
             if obs_count < MAX_OBSERVATIONS:
                 start_year = year
                 continue
             obs_count = time_periods[year]
-            create_resource()
+            if merge_resources:
+                df1 = download_df()
+                if df1 is not None:
+                    df = df1 if df is None else df.append(df1)
+            else:
+                create_resource()
+
             end_year = year
-        create_resource()
+
+        if df is not None:
+            file_csv = join(folder, ("UNESCO_%s_%s.csv"%(countryname,indicator)).replace(" ","-"))
+            process_df(df).to_csv(file_csv, index=False)
+            resource = Resource({
+                'name': indicator,
+                'description': description
+            })
+            resource.set_file_type('csv')
+            resource.set_file_to_upload(file_csv)
+            dataset.add_update_resource(resource)
 
     if len(dataset.get_resources()) == 0:
         logger.error('No resources created for country %s!' % countryname)
