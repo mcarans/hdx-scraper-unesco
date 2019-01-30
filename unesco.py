@@ -114,13 +114,75 @@ def expand_time_columns_df(df, time_column="Time Period", value_column="Value"):
         new_df = new_df.append(dfblock,ignore_index=True)
     return new_df
 
-def process_df(df, code_column_postfix = " code", store_code = False, time_column = "Time Period", value_column = "Value"):
-    df = df.drop(columns="Time Period") # This columns just contains codes already present in each value
+def add_hxl_tags(df, time_column = "Time Period", value_column = "Value", code_column_postfix = " code"):
+    """Add the HXL tags to dataframe.
+    """
+    column_definition="""
+Age                                        #group+age
+Country / region of origin                 #country+origin
+Destination region                         #region+destination
+Field of education                         #meta+education+field
+Funding flow                               #meta+funding+flow
+Grade                                      #meta+grade
+Immigration status                         #group+immigration+status
+Infrastructure
+Level of education                         #group+education+level
+Level of educational attainment            #group+education+level+attainment
+Location
+Orientation
+Reference area
+School subject
+Sex                                        #group+sex
+Socioeconomic background
+Source of funding
+Statistical unit                           #meta+statistical+unit
+Teaching experience
+Time Period
+Type of contract
+Type of education
+Type of expenditure
+Type of institution
+Unit of measure
+Wealth quintile
+    """.split('\n')
+
+    hxl={time_column : "#date", value_column : "#indicator"}
+    for x in column_definition:
+        v=x.split("#")
+        column_name = v[0].strip()
+        column_hxl = "#"+(" ".join(v[1:])) if len(v)>1 else ""
+        if column_name in df.columns:
+            hxl[column_name]=column_hxl
+        column_name += code_column_postfix
+        column_hxl += "+code" if len(column_hxl)>1 else ""
+        if column_name in df.columns:
+            hxl[column_name]=column_hxl
+
+    return pd.DataFrame(data=[hxl],columns=df.columns).append(df,ignore_index=True)
+
+def process_df(df, code_column_postfix = " code", store_code = True, time_column = "Time Period", value_column = "Value"):
+    """
+    Processed the raw (merged) data into a desired format:
+    Code (id) is removed from string values and optionally (if store_code is True) saved in "code" columns (with column name postfixed by code_column_postfix).
+    All time-period columns are put into separate rows, original period is stored in time_column, value in value_column.
+    Rows without values are removed.
+    HXL tags are added.
+    :param df: DataFrame with input data
+    :param code_column_postfix: postfix fo code columns (used only if store_code is True)
+    :param store_code: contrrolls whether code part of string values is stored
+    :param time_column: name of a column to store the year
+    :param value_column: name of the column to store the values
+    :return: resulting DataFrame
+    """
+    df = df.drop(columns="Time Period") # Drop this columns because it is redundant - codes are present in string values
     df = split_columns_df(df, code_column_postfix = code_column_postfix, store_code = store_code)
     df = expand_time_columns_df(df, time_column = time_column, value_column = value_column)
-    index = ~(df[value_column].isna() | np.array([len(str(x).strip())==0 for x in df[value_column]]))
 
-    return df.loc[index]
+    # Remove rows lacking a value
+    index = ~(df[value_column].isna() | np.array([len(str(x).strip())==0 for x in df[value_column]]))
+    df1 = df.loc[index]
+
+    return add_hxl_tags(df1, time_column = time_column, value_column = value_column, code_column_postfix = code_column_postfix)
 
 
 def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True):
@@ -247,7 +309,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
             end_year = year
 
         if df is not None:
-            file_csv = join(folder, ("UNESCO_%s_%s.csv"%(countryname,indicator)).replace(" ","-"))
+            file_csv = join(folder, ("UNESCO_%s_%s.csv"%(countryname,indicator)).replace(" ","-").replace(":","-"))
             process_df(df).to_csv(file_csv, index=False)
             resource = Resource({
                 'name': indicator,

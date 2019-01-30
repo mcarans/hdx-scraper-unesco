@@ -28,6 +28,7 @@ def main():
 
     base_url = Configuration.read()['base_url']
     with temp_dir('UNESCO') as folder:
+        folder = "/home/orest/PycharmProjects/hdx/hdx-scraper-unesco/UNESCO"
         with Download(extra_params_yaml=join(expanduser('~'), '.extraparams.yml'), extra_params_lookup=lookup) as downloader:
             endpoints = Configuration.read()['endpoints']
             endpoints_metadata = get_endpoints_metadata(base_url, downloader, endpoints)
