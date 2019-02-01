@@ -121,32 +121,32 @@ def add_hxl_tags(df, time_column = "Time Period", value_column = "Value", code_c
 Age                                        #group+age
 Country / region of origin                 #country+origin
 Destination region                         #region+destination
-Field of education                         #meta+education+field
-Funding flow                               #meta+funding+flow
-Grade                                      #meta+grade
-Immigration status                         #group+immigration+status
-Infrastructure
+Field of education                         #indicator+education+field+name
+Funding flow                               #indicator+funding+flow+name
+Grade                                      #indicator+grade
+Immigration status                         #indicator+immigration+status
+Infrastructure                             #indicator+infrastructure
 Level of education                         #group+education+level
 Level of educational attainment            #group+education+level+attainment
-Location
-Orientation
-Reference area
-School subject
+Location                                   #geo+location+type
+Orientation                                #indicator+orientation
+Reference area                             #geo+reference+area
+School subject                             #indicator+school+subject+name
 Sex                                        #group+sex
-Socioeconomic background
-Source of funding
-Statistical unit                           #meta+statistical+unit
-Teaching experience
-Time Period
-Type of contract
-Type of education
-Type of expenditure
-Type of institution
-Unit of measure
-Wealth quintile
+Socioeconomic background                   #group+socioeconomic+background
+Source of funding                          #indicator+funding+source
+Statistical unit                           #indicator+statistical+unit
+Teaching experience                        #indicator+teaching+experience
+Time Period                                #date
+Type of contract                           #indicator+contract+name
+Type of education                          #indicator+education+type+name
+Type of expenditure                        #indicator+expenditure+type+name
+Type of institution                        #indicator+institution+type+name
+Unit of measure                            #meta+unit+measure+name
+Wealth quintile                            #indicator+wealth+quintile+name
     """.split('\n')
 
-    hxl={time_column : "#date", value_column : "#indicator"}
+    hxl={time_column : "#date", value_column : "#indicator+num"}
     for x in column_definition:
         v=x.split("#")
         column_name = v[0].strip()
@@ -192,11 +192,11 @@ def split_df_by_column(df, column):
         tags = df.iloc[[0], :]
         data = df.iloc[1:, :]
         other_columns = [c for c in df.columns if c!=column]
-        for x in data[column].unique():
+        for x in sorted(data[column].unique()):
             df_part = tags[other_columns].append(data.loc[data[column]==x,other_columns], ignore_index=True)
             yield x, df_part
+
 def remove_useless_columns_from_df(df):
-    tags = df.iloc[[0], :]
     data = df.iloc[1:, :]
     for c in df.columns:
         values = data[c].unique()
@@ -205,6 +205,7 @@ def remove_useless_columns_from_df(df):
                 if values[0].lower() in ["total", "_t", "not applicable", "_z", "na"] or str(values[0]).lower().startswith("all "):
                     df=df.drop(columns=c)
     return df
+
 
 def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False, split_to_resources_by_column = "Statistical unit", remove_useless_columns = True):
     """
@@ -228,8 +229,10 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
 
     def create_dataset_showcase(name):
         slugified_name = slugify(name).lower()
-
-        title = '%s - Sustainable development, Education, Demographic and Socioeconomic Indicators' % countryname
+        if single_dataset:
+            title = '%s - Sustainable development, Education, Demographic and Socioeconomic Indicators' % countryname
+        else:
+            title = name
         dataset = Dataset({
             'name': slugified_name,
             'title': title
@@ -351,11 +354,16 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
         if df is not None:
             for value, df_part in split_df_by_column(process_df(df), split_to_resources_by_column):
                 file_csv = join(folder,
-                                ("UNESCO_%s_%s.csv" % (
-                                    ("" if value is None else value+"_") + indicator, countryname)
-                                 ).replace(" ", "-").replace(":", "-").replace("/","-"))
+                                ("UNESCO_%s_%s.csv" % (countryiso3, endpoint + ("" if value is None else "_"+value))
+                                 ).replace(" ", "-").replace(":", "-").replace("/","-").replace(",","-")
+                                .replace("(","-").replace(")","-"))
                 if remove_useless_columns:
                     df_part = remove_useless_columns_from_df(df_part)
+                df_part["country-iso3"]=countryiso3
+                df_part.iloc[0,df_part.columns.get_loc("country-iso3")]="#country+iso3"
+                df_part["Indicator name"]=value
+                df_part.iloc[0,df_part.columns.get_loc("Indicator name")]="#indicator+name"
+
                 df_part.to_csv(file_csv, index=False)
                 description_part = 'Info on %s%s' % ("" if value is None else value+" in ", indicator)
                 resource = Resource({
@@ -367,14 +375,14 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                 dataset.add_update_resource(resource)
 
         if not single_dataset:
-            if len(dataset.get_resources()) == 0:
+            if dataset is None or len(dataset.get_resources()) == 0:
                 logger.error('No resources created for country %s!' % countryname)
             else:
                 dataset.set_dataset_year_range(min(years),max(years))
                 yield dataset, showcase
 
     if single_dataset:
-        if len(dataset.get_resources()) == 0:
+        if dataset is None or len(dataset.get_resources()) == 0:
             logger.error('No resources created for country %s!' % countryname)
         else:
             dataset.set_dataset_year_range(earliest_year, latest_year)
