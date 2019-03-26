@@ -61,23 +61,38 @@ def get_endpoints_metadata(base_url, downloader, endpoints):
 
 
 def split_columns_df(df, code_column_postfix = " code", store_code = False):
-    split_columns = [x.strip() for x in """
+    split_columns = [x.strip() for x in """    
 Age
+AGE
 Country / region of origin
+COUNTRY_ORIGIN
 Destination region
+REGION_DEST
 Field of education
+EDU_FIELD
 Funding flow
+FUND_FLOW
 Grade
+GRADE
 Immigration status
+IMM_STATUS
 Infrastructure
+INFRASTR
 Level of education
+EDU_LEVEL
 Level of educational attainment
+EDU_ATTAIN
 Location
+LOCATION
 Orientation
 Reference area
+REF_AREA
 School subject
+SUBJECT
 Sex
+SEX
 Socioeconomic background
+SE_BKGRD
 Source of funding
 Statistical unit
 Teaching experience
@@ -92,7 +107,12 @@ Wealth quintile
     new_df=pd.DataFrame()
     for c in split_columns:
 #        values = [":".join(x.split(":")[1:]).replace("Not applicable","NA") for x in df[c].values]
-        values = [":".join(x.split(":")[1:]) for x in df[c].values]
+        def cleanval(x):
+            if isinstance(x,str):
+                if ":" in x:
+                    return ":".join(x.split(":")[1:])
+            return x
+        values = [cleanval(x) for x in df[c].values]
         new_df[c]=values
         if store_code:
             cc = c + code_column_postfix
@@ -102,7 +122,7 @@ Wealth quintile
         new_df[c]=df[c].values
     return new_df
 
-def expand_time_columns_df(df, time_column="Time Period", value_column="Value"):
+def expand_time_columns_df(df, time_column="TIME_PERIOD", value_column="Value"):
     year_columns = [y for y in df.columns if str(y).isdigit()]
     copy_columns = [c for c in df.columns if c not in year_columns]
     new_df=pd.DataFrame(columns = copy_columns+[time_column, value_column])
@@ -114,7 +134,7 @@ def expand_time_columns_df(df, time_column="Time Period", value_column="Value"):
         new_df = new_df.append(dfblock, ignore_index=True)
     return new_df
 
-def add_hxl_tags(df, time_column = "Time Period", value_column = "Value", code_column_postfix = " code"):
+def add_hxl_tags(df, time_column = "TIME_PERIOD", value_column = "Value", code_column_postfix = " code"):
     """Add the HXL tags to dataframe.
     """
     column_definition="""
@@ -144,6 +164,32 @@ Type of expenditure                        #indicator+expenditure+type+name
 Type of institution                        #indicator+institution+type+name
 Unit of measure                            #meta+unit+measure+name
 Wealth quintile                            #indicator+wealth+quintile+name
+AGE                                        #group+age
+COUNTRY_ORIGIN                             #country+origin
+Destination region                         #region+destination
+EDU_FIELD                                  #indicator+education+field+name
+FUND_FLOW                                  #indicator+funding+flow+name
+GRADE                                      #indicator+grade
+IMM_STATUS                                 #indicator+immigration+status
+INFRASTR                                   #indicator+infrastructure
+EDU_LEVEL                                  #group+education+level
+EDU_ATTAIN                                 #group+education+level+attainment
+LOCATION                                   #geo+location+type
+Orientation                                #indicator+orientation
+Reference area                             #geo+reference+area
+School subject                             #indicator+school+subject+name
+Sex                                        #group+sex
+Socioeconomic background                   #group+socioeconomic+background
+Source of funding                          #indicator+funding+source
+Statistical unit                           #indicator+statistical+unit
+TEACH_EXPERIENCE                           #indicator+teaching+experience
+TIME_PERIOD                                #date
+Type of contract                           #indicator+contract+name
+EDU_TYPE                                   #indicator+education+type+name
+EXPENDITURE_TYPE                           #indicator+expenditure+type+name
+Type of institution                        #indicator+institution+type+name
+Unit of measure                            #meta+unit+measure+name
+Wealth quintile                            #indicator+wealth+quintile+name
     """.split('\n')
 
     hxl={time_column : "#date", value_column : "#indicator+num"}
@@ -160,7 +206,7 @@ Wealth quintile                            #indicator+wealth+quintile+name
 
     return pd.DataFrame(data=[hxl],columns=df.columns).append(df,ignore_index=True)
 
-def process_df(df, code_column_postfix = " code", store_code = False, time_column = "Time Period", value_column = "Value"):
+def process_df(df, code_column_postfix = " code", store_code = False, time_column = "TIME_PERIOD", value_column = "Value"):
     """
     Processed the raw (merged) data into a desired format:
     Code (id) is removed from string values and optionally (if store_code is True) saved in "code" columns (with column name postfixed by code_column_postfix).
@@ -174,7 +220,7 @@ def process_df(df, code_column_postfix = " code", store_code = False, time_colum
     :param value_column: name of the column to store the values
     :return: resulting DataFrame
     """
-    df = df.drop(columns="Time Period") # Drop this columns because it is redundant - codes are present in string values
+    df = df.drop(columns="TIME_PERIOD") # Drop this columns because it is redundant - codes are present in string values
     df = split_columns_df(df, code_column_postfix = code_column_postfix, store_code = store_code)
     df = expand_time_columns_df(df, time_column = time_column, value_column = value_column)
 
@@ -192,7 +238,8 @@ def split_df_by_column(df, column):
         tags = df.iloc[[0], :]
         data = df.iloc[1:, :]
         other_columns = [c for c in df.columns if c!=column]
-        for x in sorted(data[column].unique()):
+        for x in (sorted(data[column].unique())):
+            print ("  "+x)
             df_part = tags[other_columns].append(data.loc[data[column]==x,other_columns], ignore_index=True)
             yield x, df_part
 
@@ -207,7 +254,7 @@ def remove_useless_columns_from_df(df):
     return df
 
 
-def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False, split_to_resources_by_column = "Statistical unit", remove_useless_columns = True):
+def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False, split_to_resources_by_column = "STAT_UNIT", remove_useless_columns = True):
     """
     https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
     """
@@ -218,6 +265,9 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
         logger.info('Ignoring %s!' % countryname)
         return None, None
     countryiso3 = Country.get_iso3_from_iso2(countryiso2)
+    print (countryname)
+    if countryname not in ["Afghanistan"]:
+        return
     if countryiso3 is None:
         countryiso3, _ = Country.get_iso3_country_code_fuzzy(countryname)
         if countryiso3 is None:
@@ -234,7 +284,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
         else:
             title = name
         dataset = Dataset({
-            'name': slugified_name,
+            'name': slugified_name+"2",
             'title': title
         })
         dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
@@ -275,11 +325,13 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                     logger.exception("Resource not found: %s"%url)
                     return None
                 else:
-                    reraise(*exc_info)
+                    logger.exception("UNFORSEEN ERROR: %s"%url)
+                    response = None
+                    #reraise(*exc_info)
         return response
 
     if single_dataset:
-        name = 'UNESCO indicators for %s' % countryname
+        name = 'UNESCO indicators - %s' % countryname
         dataset, showcase = create_dataset_showcase(name)
 
     for endpoint in sorted(endpoints_metadata):
@@ -289,7 +341,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
         response = load_safely('%s%s' % (structure_url, dataurl_suffix))
         json = response.json()
         if not single_dataset:
-            name = 'UNESCO %s for %s' % (json["structure"]["name"], countryname)
+            name = 'UNESCO %s - %s' % (json["structure"]["name"], countryname)
             dataset, showcase = create_dataset_showcase(name)
         observations = json['structure']['dimensions']['observation']
         time_periods = dict()
@@ -298,6 +350,12 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                 for value in observation['values']:
                     time_periods[int(value['id'])] = value['actualObs']
         years = sorted(time_periods.keys(), reverse=True)
+        print("-----------------------------------------------------")
+        print (time_periods)
+        print ()
+        print (years)
+        print("-----------------------------------------------------")
+        print ()
         if len(years) == 0:
             logger.warning('No time periods for endpoint %s for country %s!' % (indicator, countryname))
             continue
@@ -306,6 +364,8 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
             earliest_year = years[-1]
         if end_year > latest_year:
             latest_year = end_year
+        print("earliest_year",earliest_year)
+        print("latest_year",latest_year)
         csv_url = '%sformat=csv' % structure_url
 
         description = more_info_url
@@ -324,6 +384,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
             dataset.add_update_resource(resource)
 
         def download_df():
+            assert end_year>=start_year
             url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
             url = downloader.get_full_url('%s%s' % (csv_url, url_years))
             print ("ENDPOINT:%s "%endpoint)
@@ -350,8 +411,10 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                 create_resource()
 
             end_year = year
+            start_year = end_year
 
         if df is not None:
+            df.to_csv("%s_%s.csv"%(countryiso3, endpoint))
             for value, df_part in split_df_by_column(process_df(df), split_to_resources_by_column):
                 file_csv = join(folder,
                                 ("UNESCO_%s_%s.csv" % (countryiso3, endpoint + ("" if value is None else "_"+value))
