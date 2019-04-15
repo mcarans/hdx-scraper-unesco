@@ -95,14 +95,22 @@ Socioeconomic background
 SE_BKGRD
 Source of funding
 Statistical unit
+STAT_UNIT
 Teaching experience
+TEACH_EXPERIENCE
 Time Period
+TIME_PERIOD
 Type of contract
+CONTRACT_TYPE
 Type of education
+EDU_TYPE
 Type of expenditure
+EXPENDITURE_TYPE
 Type of institution
 Unit of measure
+UNIT_MEASURE
 Wealth quintile
+WEALTH_QUINTILE
 """.split("\n") if len(x) and x in df.columns]
     new_df=pd.DataFrame()
     for c in split_columns:
@@ -122,7 +130,7 @@ Wealth quintile
         new_df[c]=df[c].values
     return new_df
 
-def expand_time_columns_df(df, time_column="TIME_PERIOD", value_column="Value"):
+def expand_time_columns_df(df, time_column="TIME_PERIOD", value_column="OBS_VALUE"):
     year_columns = [y for y in df.columns if str(y).isdigit()]
     copy_columns = [c for c in df.columns if c not in year_columns]
     new_df=pd.DataFrame(columns = copy_columns+[time_column, value_column])
@@ -134,10 +142,10 @@ def expand_time_columns_df(df, time_column="TIME_PERIOD", value_column="Value"):
         new_df = new_df.append(dfblock, ignore_index=True)
     return new_df
 
-def add_hxl_tags(df, time_column = "TIME_PERIOD", value_column = "Value", code_column_postfix = " code"):
+def add_hxl_tags(df, time_column = "TIME_PERIOD", value_column = "OBS_VALUE", code_column_postfix = " code"):
     """Add the HXL tags to dataframe.
     """
-    column_definition="""
+    column_definition="""    
 Age                                        #group+age
 Country / region of origin                 #country+origin
 Destination region                         #region+destination
@@ -164,37 +172,48 @@ Type of expenditure                        #indicator+expenditure+type+name
 Type of institution                        #indicator+institution+type+name
 Unit of measure                            #meta+unit+measure+name
 Wealth quintile                            #indicator+wealth+quintile+name
+
 AGE                                        #group+age
+BASIC_SERVICES                             #indicator+basic+services
+CONTRACT_TYPE                              #indicator+contract+name
+CLASS_TYPE                                 #indicator+class+name
 COUNTRY_ORIGIN                             #country+origin
-Destination region                         #region+destination
+EDU_ATTAIN                                 #group+education+level+attainment
+EDU_CAT                                    #indicator+education+category+name
 EDU_FIELD                                  #indicator+education+field+name
+EDU_LEVEL                                  #group+education+level
+EDU_TYPE                                   #indicator+education+type+name
 FUND_FLOW                                  #indicator+funding+flow+name
 GRADE                                      #indicator+grade
 IMM_STATUS                                 #indicator+immigration+status
 INFRASTR                                   #indicator+infrastructure
-EDU_LEVEL                                  #group+education+level
-EDU_ATTAIN                                 #group+education+level+attainment
+FREQ                                       #indicator+frequency
 LOCATION                                   #geo+location+type
-Orientation                                #indicator+orientation
-Reference area                             #geo+reference+area
-School subject                             #indicator+school+subject+name
-Sex                                        #group+sex
-Socioeconomic background                   #group+socioeconomic+background
-Source of funding                          #indicator+funding+source
-Statistical unit                           #indicator+statistical+unit
+REF_AREA                                   #geo+reference+area
+REGION_DEST                                #region+destination
+SUBJECT                                    #indicator+school+subject+name
+SECTOR_EDU                                 #indicator+sector+name
+SEX                                        #group+sex
+SE_BKGRD                                   #group+socioeconomic+background
+SOURCE_FUND                                #indicator+funding+source
+STAT_UNIT                                  #indicator+statistical+unit
 TEACH_EXPERIENCE                           #indicator+teaching+experience
 TIME_PERIOD                                #date
-Type of contract                           #indicator+contract+name
-EDU_TYPE                                   #indicator+education+type+name
 EXPENDITURE_TYPE                           #indicator+expenditure+type+name
-Type of institution                        #indicator+institution+type+name
-Unit of measure                            #meta+unit+measure+name
-Wealth quintile                            #indicator+wealth+quintile+name
+UNIT_MEASURE                               #meta+unit+measure+name
+UNIT_MULT                                  #meta+unit+mult+name
+DECIMALS                                   #meta+decimals
+WEALTH_QUINTILE                            #indicator+wealth+quintile+name
+DISPERSION
+OBS_STATUS
+TEXTB_TYPE
     """.split('\n')
 
     hxl={time_column : "#date", value_column : "#indicator+num"}
     for x in column_definition:
         v=x.split("#")
+        if len(v)!=2:
+            continue
         column_name = v[0].strip()
         column_hxl = "#"+(" ".join(v[1:])) if len(v)>1 else ""
         if column_name in df.columns:
@@ -287,6 +306,12 @@ def create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_
     return dataset, showcase
 
 def load_safely(downloader, url):
+    """
+    Safely load data from URL - wait if quota is exceeded
+    :param downloader: Downloader object
+    :param url: url to fetch
+    :return: response object
+    """
     response = None
     while response is None:
         try:
@@ -308,12 +333,40 @@ def load_safely(downloader, url):
 
 
 def download_df(downloader, csv_url, start_year, end_year):
+    """
+    Download dataframe from csv_url with a specified period
+    :param downloader: Downloader object
+    :param csv_url: URL prefix to fetch data from
+    :param start_year: start year of the period
+    :param end_year: end year of the period
+    :return: DataFrame or None in case of a failure
+    """
     assert end_year >= start_year
     url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
     url = downloader.get_full_url('%s%s' % (csv_url, url_years))
     response = load_safely(downloader, url)
     if response is not None:
         return pd.read_csv(BytesIO(response.content), encoding="ISO-8859-1")
+
+def chunk_years(time_periods, max_observations=None):
+    """
+    Chunk years to periods with a number of observations limited by max_observations.
+    :param time_periods: dictionary of years -> number of observations
+    :param max_observations: maximum numbver of observations (if None, default value is selected)
+    :return: generator yielding pairs of (start year, end year)
+    """
+    if max_observations is None:
+        max_observations=MAX_OBSERVATIONS
+
+    years = np.sort(np.array(list(time_periods.keys())))[::-1]
+    observation_per_year = np.array([time_periods.get(int(y),0) for y in years])
+
+    while len(years):
+        cumulative_sum = np.cumsum(observation_per_year)
+        selection =  cumulative_sum <= max(max_observations, cumulative_sum[0])
+        yield years[selection].min(),years[selection].max()
+        years = years[~selection]
+        observation_per_year=observation_per_year[~selection]
 
 
 def generate_dataset_and_showcase(downloader,
@@ -340,6 +393,7 @@ def generate_dataset_and_showcase(downloader,
 
     countryiso2 = countrydata['id']
     countryname = countrydata['names'][0]['value']
+    logger.info("Processing %s"%countryname)
 
     if countryname[:4] in ['WB: ', 'SDG:', 'MDG:', 'UIS:', 'EFA:'] or countryname[:5] in ['GEMR:', 'AIMS:'] or \
             countryname[:7] in ['UNICEF:', 'UNESCO:']:
@@ -379,15 +433,13 @@ def generate_dataset_and_showcase(downloader,
             if observation['id'] == 'TIME_PERIOD':
                 for value in observation['values']:
                     time_periods[int(value['id'])] = value['actualObs']
-        years = sorted(time_periods.keys(), reverse=True)
-        if len(years) == 0:
+        if len(time_periods) == 0:
             logger.warning('No time periods for endpoint %s for country %s!' % (indicator, countryname))
             continue
-        end_year = years[0]
-        if years[-1] < earliest_year:
-            earliest_year = years[-1]
-        if end_year > latest_year:
-            latest_year = end_year
+
+        earliest_year = min(earliest_year, *time_periods.keys())
+        latest_year = max(latest_year,*time_periods.keys())
+
         csv_url = '%sformat=csv' % structure_url
 
         description = more_info_url
@@ -395,35 +447,21 @@ def generate_dataset_and_showcase(downloader,
             description = '[Info on %s](%s)' % (indicator, description)
         description = 'To save, right click download button & click Save Link/Target As  \n%s' % description
 
-        def create_resource():
-            url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
-            resource = {
-                'name': '%s (%d-%d)' % (indicator, start_year, end_year),
-                'description': description,
-                'format': 'csv',
-                'url': downloader.get_full_url('%s%s' % (csv_url, url_years))
-            }
-            dataset.add_update_resource(resource)
-
-        obs_count = 0
-        start_year = end_year
         df = None
-
-        for year in years:
-            obs_count += time_periods[year]
-            if obs_count < MAX_OBSERVATIONS:
-                start_year = year
-                continue
-            obs_count = time_periods[year]
+        for start_year, end_year in chunk_years(time_periods):
             if merge_resources:
                 df1 = download_df(downloader, csv_url, start_year, end_year)
                 if df1 is not None:
                     df = df1 if df is None else df.append(df1)
             else:
-                create_resource()
-
-            end_year = year
-            start_year = end_year
+                url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
+                resource = {
+                    'name': '%s (%d-%d)' % (indicator, start_year, end_year),
+                    'description': description,
+                    'format': 'csv',
+                    'url': downloader.get_full_url('%s%s' % (csv_url, url_years))
+                }
+                dataset.add_update_resource(resource)
 
         if df is not None:
             df.to_csv("%s_%s.csv"%(countryiso3, endpoint))
@@ -453,7 +491,7 @@ def generate_dataset_and_showcase(downloader,
             if dataset is None or len(dataset.get_resources()) == 0:
                 logger.error('No resources created for country %s, %s!' % (countryname, endpoint))
             else:
-                dataset.set_dataset_year_range(min(years),max(years))
+                dataset.set_dataset_year_range(min(*time_periods.keys()),max(*time_periods.keys()))
                 yield dataset, showcase
 
     if single_dataset:
