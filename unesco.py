@@ -206,7 +206,7 @@ Wealth quintile                            #indicator+wealth+quintile+name
 
     return pd.DataFrame(data=[hxl],columns=df.columns).append(df,ignore_index=True)
 
-def process_df(df, code_column_postfix = " code", store_code = False, time_column = "TIME_PERIOD", value_column = "Value"):
+def process_df(df, code_column_postfix = " code", store_code = False, time_column = "TIME_PERIOD", value_column = "OBS_VALUE"):
     """
     Processed the raw (merged) data into a desired format:
     Code (id) is removed from string values and optionally (if store_code is True) saved in "code" columns (with column name postfixed by code_column_postfix).
@@ -220,9 +220,9 @@ def process_df(df, code_column_postfix = " code", store_code = False, time_colum
     :param value_column: name of the column to store the values
     :return: resulting DataFrame
     """
-    df = df.drop(columns="TIME_PERIOD") # Drop this columns because it is redundant - codes are present in string values
+    #df = df.drop(columns="TIME_PERIOD") # Drop this columns because it is redundant - codes are present in string values
     df = split_columns_df(df, code_column_postfix = code_column_postfix, store_code = store_code)
-    df = expand_time_columns_df(df, time_column = time_column, value_column = value_column)
+    #df = expand_time_columns_df(df, time_column = time_column, value_column = value_column)
 
     # Remove rows lacking a value
     index = ~(df[value_column].isna() | np.array([len(str(x).strip())==0 for x in df[value_column]]))
@@ -239,7 +239,6 @@ def split_df_by_column(df, column):
         data = df.iloc[1:, :]
         other_columns = [c for c in df.columns if c!=column]
         for x in (sorted(data[column].unique())):
-            print ("  "+x)
             df_part = tags[other_columns].append(data.loc[data[column]==x,other_columns], ignore_index=True)
             yield x, df_part
 
@@ -265,7 +264,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
         logger.info('Ignoring %s!' % countryname)
         return None, None
     countryiso3 = Country.get_iso3_from_iso2(countryiso2)
-    print (countryname)
+    print (f"GENERATE {countryname} ====================================")
     if countryname not in ["Afghanistan"]:
         return
     if countryiso3 is None:
@@ -335,6 +334,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
         dataset, showcase = create_dataset_showcase(name)
 
     for endpoint in sorted(endpoints_metadata):
+        print(f"ENDPOINT {endpoint}")
         time.sleep(0.2)
         indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
         structure_url = structure_url % countryiso2
@@ -350,12 +350,6 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                 for value in observation['values']:
                     time_periods[int(value['id'])] = value['actualObs']
         years = sorted(time_periods.keys(), reverse=True)
-        print("-----------------------------------------------------")
-        print (time_periods)
-        print ()
-        print (years)
-        print("-----------------------------------------------------")
-        print ()
         if len(years) == 0:
             logger.warning('No time periods for endpoint %s for country %s!' % (indicator, countryname))
             continue
@@ -364,8 +358,6 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
             earliest_year = years[-1]
         if end_year > latest_year:
             latest_year = end_year
-        print("earliest_year",earliest_year)
-        print("latest_year",latest_year)
         csv_url = '%sformat=csv' % structure_url
 
         description = more_info_url
@@ -387,8 +379,8 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
             assert end_year>=start_year
             url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
             url = downloader.get_full_url('%s%s' % (csv_url, url_years))
-            print ("ENDPOINT:%s "%endpoint)
-            print ("URL     :%s "%url)
+            print ("*** ENDPOINT:%s "%endpoint)
+            print ("*** URL     :%s "%url)
             response = load_safely(url)
             if response is not None:
                 return pd.read_csv(BytesIO(response.content),encoding = "ISO-8859-1")
@@ -431,7 +423,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                 description_part = 'Info on %s%s' % ("" if value is None else value+" in ", indicator)
                 resource = Resource({
                     'name': value,
-                    'description': description
+                    'description': description_part
                 })
                 resource.set_file_type('csv')
                 resource.set_file_to_upload(file_csv)
@@ -439,14 +431,14 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
 
         if not single_dataset:
             if dataset is None or len(dataset.get_resources()) == 0:
-                logger.error('No resources created for country %s!' % countryname)
+                logger.error('No resources created for country %s, %s!' % (countryname, endpoint))
             else:
                 dataset.set_dataset_year_range(min(years),max(years))
                 yield dataset, showcase
 
     if single_dataset:
         if dataset is None or len(dataset.get_resources()) == 0:
-            logger.error('No resources created for country %s!' % countryname)
+            logger.error('No resources created for country %s!' % (countryname))
         else:
             dataset.set_dataset_year_range(earliest_year, latest_year)
             yield dataset, showcase

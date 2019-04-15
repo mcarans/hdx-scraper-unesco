@@ -34,7 +34,7 @@ def main():
             countriesdata = get_countriesdata(base_url, downloader)
             logger.info('Number of datasets to upload: %d' % len(countriesdata))
 
-            for countrydata in countriesdata:
+            for countrydata in countriesdata[:3]:
                 for dataset, showcase in generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False):
                     if dataset:
                         dataset.update_from_yaml()
