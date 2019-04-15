@@ -253,96 +253,126 @@ def remove_useless_columns_from_df(df):
     return df
 
 
-def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False, split_to_resources_by_column = "STAT_UNIT", remove_useless_columns = True):
+def create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_dataset=False):
+    slugified_name = slugify(name).lower()
+    if single_dataset:
+        title = '%s - Sustainable development, Education, Demographic and Socioeconomic Indicators' % countryname
+    else:
+        title = name
+    dataset = Dataset({
+        'name': slugified_name+"2",
+        'title': title
+    })
+    dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
+    dataset.set_organization('18f2d467-dcf8-4b7e-bffa-b3c338ba3a7c')
+    dataset.set_subnational(False)
+    try:
+        dataset.add_country_location(countryiso3)
+    except HDXError as e:
+        logger.exception('%s has a problem! %s' % (countryname, e))
+        return None,None
+    dataset.set_expected_update_frequency('Every year')
+    tags = ['indicators', 'sustainable development', 'demographics', 'socioeconomics', 'education']
+    dataset.add_tags(tags)
+
+    showcase = Showcase({
+        'name': '%s-showcase' % slugified_name,
+        'title': name,
+        'notes': 'Education, literacy and other indicators for %s' % countryname,
+        'url': 'http://uis.unesco.org/en/country/%s' % countryiso2,
+        'image_url': 'http://www.tellmaps.com/uis/internal/assets/uisheader-en.png'
+    })
+    showcase.add_tags(tags)
+
+    return dataset, showcase
+
+def load_safely(downloader, url):
+    response = None
+    while response is None:
+        try:
+            response = downloader.download(url)
+        except DownloadError:
+            exc_info = sys.exc_info()
+            tp, val, tb = exc_info
+            if 'Quota Exceeded' in str(val.__cause__):
+                logger.info('Sleeping for one minute')
+                time.sleep(60)
+            elif 'Not Found' in str(val.__cause__):
+                logger.exception("Resource not found: %s"%url)
+                return None
+            else:
+                logger.exception("UNFORSEEN ERROR: %s"%url)
+                response = None
+                #reraise(*exc_info)
+    return response
+
+
+def download_df(downloader, csv_url, start_year, end_year):
+    assert end_year >= start_year
+    url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
+    url = downloader.get_full_url('%s%s' % (csv_url, url_years))
+    response = load_safely(downloader, url)
+    if response is not None:
+        return pd.read_csv(BytesIO(response.content), encoding="ISO-8859-1")
+
+
+def generate_dataset_and_showcase(downloader,
+                                  countrydata,
+                                  endpoints_metadata,
+                                  folder,
+                                  merge_resources=True,
+                                  single_dataset=False,
+                                  split_to_resources_by_column = "STAT_UNIT",
+                                  remove_useless_columns = True):
     """
     https://api.uis.unesco.org/sdmx/data/UNESCO,DEM_ECO/....AU.?format=csv-:-tab-true-y&locale=en&subscription-key=...
+
+    :param downloader: Downloader object
+    :param countrydata: Country datastructure from UNESCO API
+    :param endpoints_metadata: Endpoint datastructure from UNESCO API
+    :param folder: temporary folder
+    :param merge_resources: if true, merge resources for all time periods
+    :param single_dataset: if true, put all endpoints into a single dataset
+    :param split_to_resources_by_column: split data into multiple resorces (csv) based on a value in the specified column
+    :param remove_useless_columns:
+    :return: generator yielding (dataset, showcase) tuples. It may yield None, None.
     """
+
     countryiso2 = countrydata['id']
     countryname = countrydata['names'][0]['value']
+
     if countryname[:4] in ['WB: ', 'SDG:', 'MDG:', 'UIS:', 'EFA:'] or countryname[:5] in ['GEMR:', 'AIMS:'] or \
             countryname[:7] in ['UNICEF:', 'UNESCO:']:
         logger.info('Ignoring %s!' % countryname)
-        return None, None
-    countryiso3 = Country.get_iso3_from_iso2(countryiso2)
-    print (f"GENERATE {countryname} ====================================")
-    if countryname not in ["Afghanistan"]:
+        yield None, None
         return
+
+    countryiso3 = Country.get_iso3_from_iso2(countryiso2)
     if countryiso3 is None:
         countryiso3, _ = Country.get_iso3_country_code_fuzzy(countryname)
         if countryiso3 is None:
             logger.exception('Cannot get iso3 code for %s!' % countryname)
-            return None, None
+            yield None, None
+            return
         logger.info('Matched %s to %s!' % (countryname, countryiso3))
+
     earliest_year = 10000
     latest_year = 0
 
-    def create_dataset_showcase(name):
-        slugified_name = slugify(name).lower()
-        if single_dataset:
-            title = '%s - Sustainable development, Education, Demographic and Socioeconomic Indicators' % countryname
-        else:
-            title = name
-        dataset = Dataset({
-            'name': slugified_name+"2",
-            'title': title
-        })
-        dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
-        dataset.set_organization('18f2d467-dcf8-4b7e-bffa-b3c338ba3a7c')
-        dataset.set_subnational(False)
-        try:
-            dataset.add_country_location(countryiso3)
-        except HDXError as e:
-            logger.exception('%s has a problem! %s' % (countryname, e))
-            return None,None
-        dataset.set_expected_update_frequency('Every year')
-        tags = ['indicators', 'sustainable development', 'demographics', 'socioeconomics', 'education']
-        dataset.add_tags(tags)
-
-        showcase = Showcase({
-            'name': '%s-showcase' % slugified_name,
-            'title': name,
-            'notes': 'Education, literacy and other indicators for %s' % countryname,
-            'url': 'http://uis.unesco.org/en/country/%s' % countryiso2,
-            'image_url': 'http://www.tellmaps.com/uis/internal/assets/uisheader-en.png'
-        })
-        showcase.add_tags(tags)
-
-        return dataset, showcase
-
-    def load_safely(url):
-        response = None
-        while response is None:
-            try:
-                response = downloader.download(url)
-            except DownloadError:
-                exc_info = sys.exc_info()
-                tp, val, tb = exc_info
-                if 'Quota Exceeded' in str(val.__cause__):
-                    logger.info('Sleeping for one minute')
-                    time.sleep(60)
-                elif 'Not Found' in str(val.__cause__):
-                    logger.exception("Resource not found: %s"%url)
-                    return None
-                else:
-                    logger.exception("UNFORSEEN ERROR: %s"%url)
-                    response = None
-                    #reraise(*exc_info)
-        return response
 
     if single_dataset:
         name = 'UNESCO indicators - %s' % countryname
-        dataset, showcase = create_dataset_showcase(name)
+        dataset, showcase = create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_dataset=single_dataset)
 
     for endpoint in sorted(endpoints_metadata):
-        print(f"ENDPOINT {endpoint}")
         time.sleep(0.2)
         indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
         structure_url = structure_url % countryiso2
-        response = load_safely('%s%s' % (structure_url, dataurl_suffix))
+        response = load_safely(downloader, '%s%s' % (structure_url, dataurl_suffix))
         json = response.json()
         if not single_dataset:
             name = 'UNESCO %s - %s' % (json["structure"]["name"], countryname)
-            dataset, showcase = create_dataset_showcase(name)
+            dataset, showcase = create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_dataset=single_dataset)
         observations = json['structure']['dimensions']['observation']
         time_periods = dict()
         for observation in observations:
@@ -375,16 +405,6 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
             }
             dataset.add_update_resource(resource)
 
-        def download_df():
-            assert end_year>=start_year
-            url_years = '&startPeriod=%d&endPeriod=%d' % (start_year, end_year)
-            url = downloader.get_full_url('%s%s' % (csv_url, url_years))
-            print ("*** ENDPOINT:%s "%endpoint)
-            print ("*** URL     :%s "%url)
-            response = load_safely(url)
-            if response is not None:
-                return pd.read_csv(BytesIO(response.content),encoding = "ISO-8859-1")
-
         obs_count = 0
         start_year = end_year
         df = None
@@ -396,7 +416,7 @@ def generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, f
                 continue
             obs_count = time_periods[year]
             if merge_resources:
-                df1 = download_df()
+                df1 = download_df(downloader, csv_url, start_year, end_year)
                 if df1 is not None:
                     df = df1 if df is None else df.append(df1)
             else:

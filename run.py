@@ -32,9 +32,13 @@ def main():
             endpoints = Configuration.read()['endpoints']
             endpoints_metadata = get_endpoints_metadata(base_url, downloader, endpoints)
             countriesdata = get_countriesdata(base_url, downloader)
+#            with open("ENDPOINTS_METADATA.json","w") as f:
+#                import json
+#                json.dump(endpoints_metadata,f)
+
             logger.info('Number of datasets to upload: %d' % len(countriesdata))
 
-            for countrydata in countriesdata[:3]:
+            for countrydata in countriesdata:
                 for dataset, showcase in generate_dataset_and_showcase(downloader, countrydata, endpoints_metadata, folder, merge_resources=True, single_dataset=False):
                     if dataset:
                         dataset.update_from_yaml()
@@ -46,5 +50,5 @@ def main():
                         showcase.add_dataset(dataset)
 
 if __name__ == '__main__':
-    facade(main, user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup=lookup, project_config_yaml=join('config', 'project_configuration.yml'))
+    facade(main, hdx_site='test', user_agent_config_yaml=join(expanduser('~'), '.useragents.yml'), user_agent_lookup=lookup, project_config_yaml=join('config', 'project_configuration.yml'))
 
