@@ -274,12 +274,13 @@ def remove_useless_columns_from_df(df):
 
 def create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_dataset=False):
     slugified_name = slugify(name).lower()
+    slugified_name = slugified_name.replace("united-kingdom-of-great-britain-and-northern-ireland","uk") # Too long
     if single_dataset:
         title = '%s - Sustainable development, Education, Demographic and Socioeconomic Indicators' % countryname
     else:
         title = name
     dataset = Dataset({
-        'name': slugified_name+"2",
+        'name': slugified_name,
         'title': title
     })
     dataset.set_maintainer('196196be-6037-4488-8b71-d786adf4c081')
@@ -368,7 +369,7 @@ def chunk_years(time_periods, max_observations=None):
         years = years[~selection]
         observation_per_year=observation_per_year[~selection]
 
-
+flag = False
 def generate_dataset_and_showcase(downloader,
                                   countrydata,
                                   endpoints_metadata,
@@ -390,7 +391,7 @@ def generate_dataset_and_showcase(downloader,
     :param remove_useless_columns:
     :return: generator yielding (dataset, showcase) tuples. It may yield None, None.
     """
-
+    global flag # TODO remove
     countryiso2 = countrydata['id']
     countryname = countrydata['names'][0]['value']
     logger.info("Processing %s"%countryname)
@@ -402,6 +403,14 @@ def generate_dataset_and_showcase(downloader,
         return
 
     countryiso3 = Country.get_iso3_from_iso2(countryiso2)
+    print(f"++++++++++++ {countryname} {countryiso3} ++++++++++++")   ########################################## TODO
+#    if countryiso3!="ALB":                                            ##########################################
+#        return                                                        ##########################################
+    if countryname =='United Kingdom of Great Britain and Northern Ireland':  # TODO remove
+        flag=True # TODO remove
+    if not flag: # TODO remove
+        return # TODO remove
+
     if countryiso3 is None:
         countryiso3, _ = Country.get_iso3_country_code_fuzzy(countryname)
         if countryiso3 is None:
@@ -417,8 +426,13 @@ def generate_dataset_and_showcase(downloader,
     if single_dataset:
         name = 'UNESCO indicators - %s' % countryname
         dataset, showcase = create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_dataset=single_dataset)
+        if dataset is None:
+            return
 
     for endpoint in sorted(endpoints_metadata):
+#        if endpoint != "EDU_NON_FINANCE": ########################################## TODO
+#            continue                      ##########################################
+        print(f"   * * * {endpoint}")     ##########################################
         time.sleep(0.2)
         indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
         structure_url = structure_url % countryiso2
@@ -427,6 +441,8 @@ def generate_dataset_and_showcase(downloader,
         if not single_dataset:
             name = 'UNESCO %s - %s' % (json["structure"]["name"], countryname)
             dataset, showcase = create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_dataset=single_dataset)
+            if dataset is None:
+                continue
         observations = json['structure']['dimensions']['observation']
         time_periods = dict()
         for observation in observations:
@@ -464,7 +480,8 @@ def generate_dataset_and_showcase(downloader,
                 dataset.add_update_resource(resource)
 
         if df is not None:
-            df.to_csv("%s_%s.csv"%(countryiso3, endpoint))
+            print("DUMP %s_%s.csv"%(countryiso3, endpoint)) ########################################## TODO
+            df.to_csv("UNESCO3-complete/%s_%s.csv"%(countryiso3, endpoint))  ########################################## TODO
             for value, df_part in split_df_by_column(process_df(df), split_to_resources_by_column):
                 file_csv = join(folder,
                                 ("UNESCO_%s_%s.csv" % (countryiso3, endpoint + ("" if value is None else "_"+value))
@@ -491,7 +508,7 @@ def generate_dataset_and_showcase(downloader,
             if dataset is None or len(dataset.get_resources()) == 0:
                 logger.error('No resources created for country %s, %s!' % (countryname, endpoint))
             else:
-                dataset.set_dataset_year_range(min(*time_periods.keys()),max(*time_periods.keys()))
+                dataset.set_dataset_year_range(min(time_periods.keys()),max(time_periods.keys()))
                 yield dataset, showcase
 
     if single_dataset:
