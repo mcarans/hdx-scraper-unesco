@@ -275,6 +275,7 @@ def remove_useless_columns_from_df(df):
 def create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_dataset=False):
     slugified_name = slugify(name).lower()
     slugified_name = slugified_name.replace("united-kingdom-of-great-britain-and-northern-ireland","uk") # Too long
+    slugified_name = slugified_name.replace("demographic-and-socio-economic-indicators","dsei") # Too long
     if single_dataset:
         title = '%s - Sustainable development, Education, Demographic and Socioeconomic Indicators' % countryname
     else:
@@ -406,7 +407,7 @@ def generate_dataset_and_showcase(downloader,
     print(f"++++++++++++ {countryname} {countryiso3} ++++++++++++")   ########################################## TODO
 #    if countryiso3!="ALB":                                            ##########################################
 #        return                                                        ##########################################
-    if countryname =='United Kingdom of Great Britain and Northern Ireland':  # TODO remove
+    if countryname =='China, Hong Kong Special Administrative Region':  # TODO remove
         flag=True # TODO remove
     if not flag: # TODO remove
         return # TODO remove
