@@ -28,7 +28,7 @@ from os.path import join
 
 logger = logging.getLogger(__name__)
 
-MAX_OBSERVATIONS = 1800
+MAX_OBSERVATIONS = 29990 # 1800
 dataurl_suffix = 'format=sdmx-json&detail=structureonly&includeMetrics=true'
 
 
@@ -44,7 +44,8 @@ def get_endpoints_metadata(base_url, downloader, endpoints):
         base_dataurl = '%sdata/UNESCO,%s/' % (base_url, endpoint)
         datastructure_url = '%s?%s' % (base_dataurl, dataurl_suffix)
         response = downloader.download(datastructure_url)
-        #open("endpointmeta_%s.json"%endpoint,"wb").write(response.content)  ###########################
+#        open("endpointmeta_%s.json"%endpoint,"wb").write(response.content)  #TODO Clean
+#        print("META "+endpoint)
         json = response.json()
         indicator = json['structure']['name']
         dimensions = json['structure']['dimensions']['observation']
@@ -56,9 +57,47 @@ def get_endpoints_metadata(base_url, downloader, endpoints):
                 urllist.append('.')
         urllist.append('?')
         structure_url = ''.join(urllist)
-        endpoints_metadata[endpoint] = indicator, structure_url, endpoints[endpoint]
+        endpoints_metadata[endpoint] = indicator, structure_url, endpoints[endpoint], dimensions
+#    with open("endpoints_metadata.json","w") as f: #TODO Clean
+#        import json
+#        f.write(json.dumps(endpoints_metadata))
     return endpoints_metadata
 
+def expand_column_labels(df):
+    column_expansion_table = {row.split()[0]:" ".join(row.split()[1:]) for row in """
+AGE                Age
+COUNTRY_ORIGIN     Country / region of origin
+REGION_DEST        Destination region
+EDU_FIELD          Field of education
+FUND_FLOW          Funding flow
+GRADE              Grade
+IMM_STATUS         Immigration status
+INFRASTR           Infrastructure
+EDU_LEVEL          Level of education
+EDU_ATTAIN         Level of educational attainment
+LOCATION           Location
+REF_AREA           Reference area
+SUBJECT            Subject
+SEX                Sex
+SE_BKGRD           Socioeconomic background
+STAT_UNIT          Statistical unit
+TEACH_EXPERIENCE   Teaching experience
+TIME_PERIOD        Time Period
+CONTRACT_TYPE      Type of contract
+EDU_TYPE           Type of education
+EXPENDITURE_TYPE   Type of expenditure
+UNIT_MEASURE       Unit of measure
+WEALTH_QUINTILE    Wealth quintile
+    """.split("\n") if len(row.split())>=2}
+    def expand_label(label):
+        if label in column_expansion_table:
+            return column_expansion_table[label]
+        else:
+            label = label.lower().replace("_"," ")
+            label = label[0].upper()+label[1:]
+            return label
+    return df.rename(columns={c:expand_label(c) for c in df.columns})
+    
 
 def split_columns_df(df, code_column_postfix = " code", store_code = False):
     split_columns = [x.strip() for x in """    
@@ -250,6 +289,10 @@ def process_df(df, code_column_postfix = " code", store_code = False, time_colum
     df2 = add_hxl_tags(df1, time_column = time_column, value_column = value_column, code_column_postfix = code_column_postfix)
     return df2
 
+def postprocess_df(df):
+    "Do final adjustments to the dataframe before publishing."
+    return expand_column_labels(df)
+
 def split_df_by_column(df, column):
     if column is None:
         yield None, df
@@ -423,7 +466,7 @@ def generate_dataset_and_showcase(downloader,
 
     for endpoint in sorted(endpoints_metadata):
         time.sleep(0.2)
-        indicator, structure_url, more_info_url = endpoints_metadata[endpoint]
+        indicator, structure_url, more_info_url, dimensions = endpoints_metadata[endpoint]
         structure_url = structure_url % countryiso2
         response = load_safely(downloader, '%s%s' % (structure_url, dataurl_suffix))
         json = response.json()
@@ -469,6 +512,7 @@ def generate_dataset_and_showcase(downloader,
                 dataset.add_update_resource(resource)
 
         if df is not None:
+            stat = {x["id"]: x["name"] for d in dimensions if d["id"] == "STAT_UNIT" for x in d["values"]}
             for value, df_part in split_df_by_column(process_df(df), split_to_resources_by_column):
                 file_csv = join(folder,
                                 ("UNESCO_%s_%s.csv" % (countryiso3, endpoint + ("" if value is None else "_"+value))
@@ -480,9 +524,9 @@ def generate_dataset_and_showcase(downloader,
                 df_part.iloc[0,df_part.columns.get_loc("country-iso3")]="#country+iso3"
                 df_part["Indicator name"]=value
                 df_part.iloc[0,df_part.columns.get_loc("Indicator name")]="#indicator+name"
-
+                df_part = postprocess_df(df_part)
                 df_part.to_csv(file_csv, index=False)
-                description_part = 'Info on %s%s' % ("" if value is None else value+" in ", indicator)
+                description_part = stat.get(value,'Info on %s%s' % ("" if value is None else value+" in ", indicator))
                 resource = Resource({
                     'name': value,
                     'description': description_part
