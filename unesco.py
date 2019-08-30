@@ -28,7 +28,7 @@ from os.path import join
 
 logger = logging.getLogger(__name__)
 
-MAX_OBSERVATIONS = 29990 # 1800
+MAX_OBSERVATIONS = 29990
 dataurl_suffix = 'format=sdmx-json&detail=structureonly&includeMetrics=true'
 
 
@@ -248,7 +248,7 @@ OBS_STATUS
 TEXTB_TYPE
     """.split('\n')
 
-    hxl={time_column : "#date", value_column : "#indicator+num"}
+    hxl={time_column : "#date", value_column : "#indicator+value+num"}
     for x in column_definition:
         v=x.split("#")
         if len(v)!=2:
@@ -336,7 +336,7 @@ def create_dataset_showcase(name, countryname, countryiso2, countryiso3, single_
         logger.exception('%s has a problem! %s' % (countryname, e))
         return None,None
     dataset.set_expected_update_frequency('Every year')
-    tags = ['indicators', 'sustainable development', 'demographics', 'socioeconomics', 'education']
+    tags = ['sustainable development', 'demographics', 'socioeconomics', 'education']
     dataset.add_tags(tags)
 
     showcase = Showcase({
